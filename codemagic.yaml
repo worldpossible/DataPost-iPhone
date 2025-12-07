@@ -5,24 +5,13 @@ workflows:
     instance_type: mac_mini_m1
     
     environment:
-      ios_signing:
-        distribution_type: development
-        bundle_identifier: org.worldpossible.DataPost
       vars:
         XCODE_PROJECT: "DataPost.xcodeproj"
         XCODE_SCHEME: "DataPost"
       xcode: latest
-      cocoapods: default
     
     scripts:
-      - name: Set up code signing
-        script: |
-          keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_DEVELOPMENT --create
-          keychain add-certificates
-          xcode-project use-profiles
-          
-      - name: Build iOS App
+      - name: Build iOS App (No Signing)
         script: |
           xcodebuild build \
             -project "$XCODE_PROJECT" \
@@ -30,18 +19,12 @@ workflows:
             -sdk iphoneos \
             -configuration Debug \
             -destination 'generic/platform=iOS' \
-            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
-            
-      - name: Build IPA (if signing configured)
-        script: |
-          if [ -n "$CODE_SIGN_IDENTITY" ]; then
-            xcode-project build-ipa --project "$XCODE_PROJECT" --scheme "$XCODE_SCHEME"
-          fi
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO
     
     artifacts:
-      - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
       - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
       
