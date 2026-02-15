@@ -9,29 +9,31 @@ workflows:
         XCODE_PROJECT: "DataPost.xcodeproj"
         XCODE_SCHEME: "DataPost"
         BUNDLE_ID: "org.worldpossible.DataPost"
+      ios_signing:
+        distribution_type: development
+        bundle_identifier: org.worldpossible.DataPost
       xcode: latest
     
     integrations:
       app_store_connect: Codemagic
     
     scripts:
-      - name: Set up code signing
-        script: |
-          keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_DEVELOPMENT --create
-          keychain add-certificates
-          xcode-project use-profiles
-      - name: Build signed IPA
+      - name: Build Archive
         script: |
           xcodebuild \
             -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
             -sdk iphoneos \
             -configuration Debug \
-            -destination 'generic/platform=iOS' \
             -archivePath $CM_BUILD_DIR/DataPost.xcarchive \
+            archive \
+            CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM=MF3F4P7AVN \
             -allowProvisioningUpdates \
-            clean archive
+            -authenticationKeyPath "$APP_STORE_CONNECT_API_KEY_PATH" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+            
       - name: Export IPA
         script: |
           xcode-project build-ipa \
