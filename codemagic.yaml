@@ -21,14 +21,13 @@ workflows:
           keychain initialize
           
           echo ""
-          echo "=== REVOKING ORPHANED CERTIFICATES ==="
-          # Get list of existing IOS_DEVELOPMENT certificate IDs and revoke them
-          # (we don't have their private keys, so they're useless)
+          echo "=== DELETING ORPHANED CERTIFICATES ==="
+          # Delete existing IOS_DEVELOPMENT certificates (we don't have their private keys)
           app-store-connect certificates list --type IOS_DEVELOPMENT --json | \
             python3 -c "import sys, json; certs = json.load(sys.stdin); [print(c['id']) for c in certs]" | \
             while read cert_id; do
-              echo "Revoking certificate: $cert_id"
-              app-store-connect certificates revoke "$cert_id" || echo "Failed to revoke $cert_id"
+              echo "Deleting certificate: $cert_id"
+              app-store-connect certificates delete "$cert_id" || echo "Failed to delete $cert_id"
             done
           
           echo ""
