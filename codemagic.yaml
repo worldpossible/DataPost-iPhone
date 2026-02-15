@@ -15,6 +15,49 @@ workflows:
       app_store_connect: Codemagic
     
     scripts:
+      - name: Generate app icons
+        script: |
+          pip3 install Pillow
+          python3 << 'EOF'
+          from PIL import Image, ImageDraw, ImageFont
+          import os
+          
+          # Icon sizes needed
+          sizes = [20, 29, 40, 58, 60, 76, 80, 87, 120, 152, 167, 180, 1024]
+          
+          icon_dir = "DataPost/Assets.xcassets/AppIcon.appiconset"
+          
+          for size in sizes:
+              # Create a gradient blue image
+              img = Image.new('RGB', (size, size), '#1E88E5')
+              draw = ImageDraw.Draw(img)
+              
+              # Add a lighter blue circle in center
+              margin = size // 6
+              draw.ellipse([margin, margin, size-margin, size-margin], fill='#42A5F5')
+              
+              # Add "R" text for RACHEL (only on larger icons)
+              if size >= 60:
+                  try:
+                      font_size = size // 2
+                      font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", font_size)
+                  except:
+                      font = ImageFont.load_default()
+                  
+                  text = "R"
+                  bbox = draw.textbbox((0, 0), text, font=font)
+                  text_width = bbox[2] - bbox[0]
+                  text_height = bbox[3] - bbox[1]
+                  x = (size - text_width) // 2
+                  y = (size - text_height) // 2 - size // 10
+                  draw.text((x, y), text, fill='white', font=font)
+              
+              img.save(f"{icon_dir}/Icon-{size}.png")
+              print(f"Generated Icon-{size}.png")
+          
+          print("All icons generated!")
+          EOF
+          
       - name: Set up code signing
         script: |
           echo "=== INITIALIZING KEYCHAIN ==="
