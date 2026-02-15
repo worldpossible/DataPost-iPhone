@@ -21,14 +21,16 @@ workflows:
           keychain initialize
           
           echo ""
-          echo "=== DELETING ORPHANED CERTIFICATES ==="
-          # Delete existing IOS_DEVELOPMENT certificates (we don't have their private keys)
-          app-store-connect certificates list --type IOS_DEVELOPMENT --json | \
-            python3 -c "import sys, json; certs = json.load(sys.stdin); [print(c['id']) for c in certs]" | \
-            while read cert_id; do
-              echo "Deleting certificate: $cert_id"
-              app-store-connect certificates delete "$cert_id" || echo "Failed to delete $cert_id"
-            done
+          echo "=== CLEANING UP ORPHANED CERTIFICATES ==="
+          # Delete existing distribution certificates we don't have keys for
+          for cert_type in IOS_DISTRIBUTION DISTRIBUTION; do
+            app-store-connect certificates list --type $cert_type --json 2>/dev/null | \
+              python3 -c "import sys, json; certs = json.load(sys.stdin); [print(c['id']) for c in certs]" 2>/dev/null | \
+              while read cert_id; do
+                echo "Deleting $cert_type certificate: $cert_id"
+                app-store-connect certificates delete "$cert_id" 2>/dev/null || true
+              done
+          done
           
           echo ""
           echo "=== GENERATING FRESH CERTIFICATE KEY ==="
@@ -36,9 +38,9 @@ workflows:
           export CERTIFICATE_PRIVATE_KEY=$(cat $CM_BUILD_DIR/cert_key.pem)
           
           echo ""
-          echo "=== FETCHING/CREATING SIGNING FILES ==="
+          echo "=== FETCHING/CREATING SIGNING FILES FOR APP STORE ==="
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_DEVELOPMENT \
+            --type IOS_APP_STORE \
             --create \
             -v
           
@@ -50,18 +52,13 @@ workflows:
           echo "=== APPLYING PROFILES TO XCODE PROJECT ==="
           xcode-project use-profiles
           
-          echo ""
-          echo "=== VERIFY SETUP ==="
-          ls -la ~/Library/MobileDevice/Certificates/ 2>/dev/null || echo "No certificates in MobileDevice"
-          ls -la ~/Library/MobileDevice/Provisioning\ Profiles/ 2>/dev/null || echo "No profiles"
-          
       - name: Build Archive
         script: |
           xcodebuild \
             -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
             -sdk iphoneos \
-            -configuration Debug \
+            -configuration Release \
             -archivePath $CM_BUILD_DIR/DataPost.xcarchive \
             archive
             
@@ -78,6 +75,10 @@ workflows:
       - $CM_BUILD_DIR/DataPost.xcarchive
       
     publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
       email:
         recipients:
           - jeremy@worldpossible.org
