@@ -15,22 +15,86 @@ workflows:
       app_store_connect: Codemagic
     
     scripts:
-      - name: Generate certificate key
+      - name: Diagnostics - Environment and Paths
         script: |
-          # Generate a new private key for code signing
+          echo "=== ENVIRONMENT DIAGNOSTICS ==="
+          echo "CM_BUILD_DIR: $CM_BUILD_DIR"
+          echo "PWD: $(pwd)"
+          echo "HOME: $HOME"
+          echo ""
+          echo "=== APP STORE CONNECT INTEGRATION CHECK ==="
+          echo "APP_STORE_CONNECT_ISSUER_ID set: ${APP_STORE_CONNECT_ISSUER_ID:+yes}"
+          echo "APP_STORE_CONNECT_KEY_IDENTIFIER set: ${APP_STORE_CONNECT_KEY_IDENTIFIER:+yes}"
+          echo "APP_STORE_CONNECT_PRIVATE_KEY set: ${APP_STORE_CONNECT_PRIVATE_KEY:+yes}"
+          echo ""
+          echo "=== CERTIFICATE_PRIVATE_KEY CHECK ==="
+          echo "CERTIFICATE_PRIVATE_KEY set: ${CERTIFICATE_PRIVATE_KEY:+yes}"
+          echo ""
+          echo "=== OPENSSL VERSION ==="
+          openssl version
+          echo ""
+          echo "=== LIST BUNDLE ID IN APPLE DEVELOPER ==="
+          app-store-connect bundle-ids list --bundle-id-identifier "$BUNDLE_ID" || echo "Failed to list bundle IDs"
+          echo ""
+          echo "=== LIST EXISTING CERTIFICATES ==="
+          app-store-connect certificates list --type IOS_DEVELOPMENT || echo "Failed to list certificates"
+          echo ""
+          echo "=== LIST EXISTING PROFILES ==="
+          app-store-connect profiles list --bundle-id-identifier "$BUNDLE_ID" || echo "Failed to list profiles"
+          echo ""
+          echo "=== LIST REGISTERED DEVICES ==="
+          app-store-connect devices list --status ENABLED || echo "Failed to list devices"
+
+      - name: Generate and verify certificate key
+        script: |
+          echo "=== GENERATING CERTIFICATE KEY ==="
           openssl genrsa -out $CM_BUILD_DIR/cert_key.pem 2048
+          echo ""
+          echo "=== VERIFY KEY FILE EXISTS ==="
+          ls -la $CM_BUILD_DIR/cert_key.pem
+          echo ""
+          echo "=== VERIFY KEY FORMAT ==="
+          head -5 $CM_BUILD_DIR/cert_key.pem
+          echo "..."
+          tail -2 $CM_BUILD_DIR/cert_key.pem
+          echo ""
+          echo "=== VERIFY KEY IS VALID RSA ==="
+          openssl rsa -in $CM_BUILD_DIR/cert_key.pem -check -noout && echo "Key is valid RSA" || echo "Key validation failed"
           
       - name: Set up code signing
         script: |
+          echo "=== INITIALIZING KEYCHAIN ==="
           keychain initialize
-          
+          echo ""
+          echo "=== FETCHING SIGNING FILES (WITH VERBOSE OUTPUT) ==="
+          # Try with the certificate key file
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_DEVELOPMENT \
             --create \
-            --certificate-key=$CM_BUILD_DIR/cert_key.pem
-          
+            --certificate-key="$CM_BUILD_DIR/cert_key.pem" \
+            -v || {
+              echo ""
+              echo "=== FIRST ATTEMPT FAILED, TRYING WITH RAW KEY CONTENT ==="
+              export CERTIFICATE_PRIVATE_KEY=$(cat $CM_BUILD_DIR/cert_key.pem)
+              app-store-connect fetch-signing-files "$BUNDLE_ID" \
+                --type IOS_APP_DEVELOPMENT \
+                --create \
+                -v
+            }
+          echo ""
+          echo "=== ADDING CERTIFICATES TO KEYCHAIN ==="
           keychain add-certificates
+          echo ""
+          echo "=== APPLYING PROFILES TO XCODE PROJECT ==="
           xcode-project use-profiles
+          echo ""
+          echo "=== VERIFY CERTIFICATES WERE ADDED ==="
+          ls -la ~/Library/MobileDevice/Certificates/ 2>/dev/null || echo "No certificates in MobileDevice"
+          ls -la ~/Library/Developer/Xcode/UserData/Certificates/ 2>/dev/null || echo "No certificates in Xcode UserData"
+          echo ""
+          echo "=== VERIFY PROFILES WERE ADDED ==="
+          ls -la ~/Library/MobileDevice/Provisioning\ Profiles/ 2>/dev/null || echo "No profiles in MobileDevice"
+          ls -la ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/ 2>/dev/null || echo "No profiles in Xcode UserData"
           
       - name: Build Archive
         script: |
