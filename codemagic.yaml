@@ -23,13 +23,14 @@ workflows:
           xcode-project use-profiles
       - name: Build signed IPA
         script: |
-          xcodebuild build \
+          xcodebuild \
             -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
             -sdk iphoneos \
             -configuration Debug \
             -destination 'generic/platform=iOS' \
             -archivePath $CM_BUILD_DIR/DataPost.xcarchive \
+            -allowProvisioningUpdates \
             clean archive
       - name: Export IPA
         script: |
