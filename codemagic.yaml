@@ -9,9 +9,6 @@ workflows:
         XCODE_PROJECT: "DataPost.xcodeproj"
         XCODE_SCHEME: "DataPost"
         BUNDLE_ID: "org.worldpossible.DataPost"
-      ios_signing:
-        distribution_type: development
-        bundle_identifier: org.worldpossible.DataPost
       xcode: latest
     
     integrations:
