@@ -57,7 +57,7 @@ struct LoginView: View {
                         .frame(width: 100, height: 100)
                         .foregroundColor(.blue)
                     
-                    Text("DataPost")
+                    Text("RACHEL Cloud")
                         .font(.largeTitle)
                         .fontWeight(.bold)
                     
