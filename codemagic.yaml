@@ -15,6 +15,23 @@ workflows:
       app_store_connect: Codemagic
     
     scripts:
+      - name: Generate certificate key
+        script: |
+          # Generate a new private key for code signing
+          openssl genrsa -out $CM_BUILD_DIR/cert_key.pem 2048
+          
+      - name: Set up code signing
+        script: |
+          keychain initialize
+          
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_DEVELOPMENT \
+            --create \
+            --certificate-key=$CM_BUILD_DIR/cert_key.pem
+          
+          keychain add-certificates
+          xcode-project use-profiles
+          
       - name: Build Archive
         script: |
           xcodebuild \
@@ -23,13 +40,7 @@ workflows:
             -sdk iphoneos \
             -configuration Debug \
             -archivePath $CM_BUILD_DIR/DataPost.xcarchive \
-            archive \
-            CODE_SIGN_STYLE=Automatic \
-            DEVELOPMENT_TEAM=MF3F4P7AVN \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$APP_STORE_CONNECT_API_KEY_PATH" \
-            -authenticationKeyID "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+            archive
             
       - name: Export IPA
         script: |
