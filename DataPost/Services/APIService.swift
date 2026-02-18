@@ -88,6 +88,32 @@ class APIService: ObservableObject {
         return httpResponse.statusCode == 200
     }
     
+    // MARK: - Account Deletion
+    
+    /// Request account deletion for the given email
+    func deleteAccount(email: String) async throws {
+        guard let url = URL(string: "\(baseURL)/delete-account") else {
+            throw APIError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body = ["email": email]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (_, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+        
+        guard httpResponse.statusCode == 200 else {
+            throw APIError.httpError(statusCode: httpResponse.statusCode)
+        }
+    }
+    
     // MARK: - Bundle List
     
     /// Fetch available bundles from a RACHEL device

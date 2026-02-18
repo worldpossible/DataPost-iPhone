@@ -42,6 +42,7 @@ struct MainTabView: View {
 struct LoginView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var email = ""
+    @State private var name = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
     
@@ -68,41 +69,34 @@ struct LoginView: View {
                 
                 Spacer()
                 
-                // Login Options
+                // Login Form
                 VStack(spacing: 16) {
-                    // Google Sign In Button
-                    Button(action: signInWithGoogle) {
-                        HStack {
-                            Image(systemName: "g.circle.fill")
-                                .font(.title2)
-                            Text("Sign in with Google")
-                                .fontWeight(.semibold)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.white)
-                        .foregroundColor(.black)
-                        .cornerRadius(10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                        )
-                    }
+                    TextField("Name", text: $name)
+                        .textFieldStyle(.roundedBorder)
+                        .textContentType(.name)
+                        .autocorrectionDisabled()
                     
-                    // Demo mode for testing without Firebase
-                    Button(action: signInDemo) {
+                    TextField("Email", text: $email)
+                        .textFieldStyle(.roundedBorder)
+                        .textContentType(.emailAddress)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    
+                    Button(action: signIn) {
                         HStack {
-                            Image(systemName: "person.fill")
+                            Image(systemName: "arrow.right.circle.fill")
                                 .font(.title2)
-                            Text("Demo Mode")
+                            Text("Sign In")
                                 .fontWeight(.semibold)
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.blue)
+                        .background(isFormValid ? Color.blue : Color.gray)
                         .foregroundColor(.white)
                         .cornerRadius(10)
                     }
+                    .disabled(!isFormValid)
                     
                     if let error = errorMessage {
                         Text(error)
@@ -132,23 +126,16 @@ struct LoginView: View {
         }
     }
     
-    private func signInWithGoogle() {
-        isLoading = true
-        errorMessage = nil
-        
-        // For now, use demo sign-in
-        // TODO: Integrate Firebase Google Sign-In
-        Task {
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            await MainActor.run {
-                authManager.signIn(email: "demo@worldpossible.org", name: "Demo User")
-                isLoading = false
-            }
-        }
+    private var isFormValid: Bool {
+        !email.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !name.trimmingCharacters(in: .whitespaces).isEmpty &&
+        email.contains("@")
     }
     
-    private func signInDemo() {
-        authManager.signIn(email: "jeremy@worldpossible.org", name: "Jeremy Demo")
+    private func signIn() {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespaces)
+        let trimmedName = name.trimmingCharacters(in: .whitespaces)
+        authManager.signIn(email: trimmedEmail, name: trimmedName)
     }
 }
 

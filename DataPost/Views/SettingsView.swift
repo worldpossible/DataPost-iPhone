@@ -8,6 +8,9 @@ struct SettingsView: View {
     @AppStorage("uploadQuality") private var uploadQuality = "Original"
     @State private var showSignOutAlert = false
     @State private var showClearDataAlert = false
+    @State private var showDeleteAccountAlert = false
+    @State private var isDeletingAccount = false
+    @State private var deleteAccountError: String?
     
     let uploadQualityOptions = ["Original", "Compressed", "Minimal"]
     
@@ -74,7 +77,7 @@ struct SettingsView: View {
                     HStack {
                         Label("Version", systemImage: "info.circle")
                         Spacer()
-                        Text("1.0.0")
+                        Text("\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"))")
                             .foregroundColor(.secondary)
                     }
                     
@@ -101,6 +104,20 @@ struct SettingsView: View {
                         Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                             .foregroundColor(.red)
                     }
+                    
+                    Button(role: .destructive) {
+                        showDeleteAccountAlert = true
+                    } label: {
+                        HStack {
+                            Label("Delete Account", systemImage: "person.crop.circle.badge.minus")
+                            if isDeletingAccount {
+                                Spacer()
+                                ProgressView()
+                            }
+                        }
+                        .foregroundColor(.red)
+                    }
+                    .disabled(isDeletingAccount)
                 } header: {
                     Text("Account")
                 } footer: {
@@ -123,6 +140,32 @@ struct SettingsView: View {
                 }
             } message: {
                 Text("This will delete all downloaded bundles and pending uploads. This action cannot be undone.")
+            }
+            .alert("Delete Account", isPresented: $showDeleteAccountAlert) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete Account", role: .destructive) {
+                    isDeletingAccount = true
+                    Task {
+                        do {
+                            try await authManager.deleteAccount()
+                        } catch {
+                            await MainActor.run {
+                                deleteAccountError = error.localizedDescription
+                                isDeletingAccount = false
+                            }
+                        }
+                    }
+                }
+            } message: {
+                Text("This will permanently delete your account and all associated data. This action cannot be undone.")
+            }
+            .alert("Deletion Failed", isPresented: .init(
+                get: { deleteAccountError != nil },
+                set: { if !$0 { deleteAccountError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(deleteAccountError ?? "An unknown error occurred.")
             }
         }
     }

@@ -60,6 +60,17 @@ class AuthManager: ObservableObject {
         clearSession()
     }
     
+    /// Delete the user's account and sign out
+    func deleteAccount() async throws {
+        guard let email = userEmail else {
+            throw AuthError.noCredentials
+        }
+        try await APIService.shared.deleteAccount(email: email)
+        await MainActor.run {
+            signOut()
+        }
+    }
+    
     // MARK: - Persistence
     
     private func saveSession() {
